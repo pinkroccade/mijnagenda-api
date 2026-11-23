@@ -1,0 +1,56 @@
+name: Publiceer API-documentatie
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "mijnagenda-openapi.yaml"
+      - "mise.toml"
+      - ".github/workflows/publiceer-documentatie.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Genereer Redoc-documentatie
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Installeer tools uit mise.toml
+        uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5
+
+      - name: Bouw statische Redoc-pagina
+        run: |
+          mkdir -p site
+          redocly build-docs mijnagenda-openapi.yaml --output site/index.html
+
+      - name: Configureer GitHub Pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
+
+      - name: Upload documentatie als Pages-artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
+        with:
+          path: site
+
+  deploy:
+    name: Publiceer naar GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy naar GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5
